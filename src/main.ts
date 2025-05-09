@@ -11,6 +11,10 @@ async function bootstrap() {
       transform: true,
     }),
   );
+  app.enableCors({
+    origin: '*', // Allow all origins — adjust as needed for security
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  });
   await app.listen(9308);
   console.log('app Listening at port 9308');
 }

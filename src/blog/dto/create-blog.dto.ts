@@ -9,4 +9,7 @@ export class CreateBlogDto {
 
   @IsString()
   photo: string;
+
+  @IsString()
+  category: string;
 }
