@@ -12,6 +12,8 @@ import { OtpModule } from './otp/otp.module';
 import { UploadModule } from './upload/upload.module';
 import { UsersModule } from './users/users.module';
 import { BlogModule } from './blog/blog.module';
+import { LanguageModule } from './language/language.module';
+import { SentencesModule } from './sentences/sentences.module';
 
 @Module({
   imports: [
@@ -28,10 +30,11 @@ import { BlogModule } from './blog/blog.module';
     DatabaseModule,
     AuthModule,
     UsersModule,
-
     OtpModule,
-    UploadModule,
+    // UploadModule,
     BlogModule,
+    LanguageModule,
+    SentencesModule
   ],
   controllers: [AppController],
   providers: [
@@ -43,4 +46,4 @@ import { BlogModule } from './blog/blog.module';
     JwtStrategy,
   ],
 })
-export class AppModule {}
+export class AppModule { }
