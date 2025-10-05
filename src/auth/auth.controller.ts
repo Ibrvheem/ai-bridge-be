@@ -4,15 +4,14 @@ import { CreateUserDto } from 'src/users/dto/create-user.dto';
 import { AuthGuard } from '@nestjs/passport';
 import { Public } from 'decorators/public.decorator';
 import { sendOTPDTO, verifyOTPDTO } from './dto/send-otp.dto';
-import { UpdateUserDto } from 'src/users/dto/update-auth.dto';
 
 @Public()
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(private readonly authService: AuthService) { }
 
   @Post('/signup')
-  create(@Body() payload: UpdateUserDto) {
+  create(@Body() payload: CreateUserDto) {
     return this.authService.register(payload);
   }
   @UseGuards(AuthGuard('local'))

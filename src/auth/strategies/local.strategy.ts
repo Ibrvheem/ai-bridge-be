@@ -7,12 +7,12 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 export class LocalStrategy extends PassportStrategy(Strategy) {
   constructor(private readonly authService: AuthService) {
     super({
-      usernameField: 'reg_no',
+      usernameField: 'email',
     });
   }
 
-  async validate(reg_no: string, password: string) {
-    const user = await this.authService.validateUser(reg_no, password);
+  async validate(email: string, password: string) {
+    const user = await this.authService.validateUser(email, password);
     if (!user) {
       throw new NotFoundException('User not found');
     }

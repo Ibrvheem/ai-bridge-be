@@ -1,26 +1,128 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
 import { CreateSentenceDto } from './dto/create-sentence.dto';
 import { UpdateSentenceDto } from './dto/update-sentence.dto';
+import { BulkCreateSentenceDto } from './dto/bulk-create-sentence.dto';
+import { Sentences } from './sentences.schema';
+import { LanguageService } from 'src/language/language.service';
 
 @Injectable()
 export class SentencesService {
-  create(createSentenceDto: CreateSentenceDto) {
-    return 'This action adds a new sentence';
+  constructor(
+    @InjectModel('Sentences') private sentenceModel: Model<Sentences>,
+    private readonly languageService: LanguageService
+  ) { }
+
+  async create(createSentenceDto: CreateSentenceDto) {
+    const createdSentence = new this.sentenceModel(createSentenceDto);
+    return createdSentence.save();
   }
 
-  findAll() {
-    return `This action returns all sentences`;
+  async bulkCreate(bulkCreateSentenceDto: BulkCreateSentenceDto) {
+    try {
+      const language = await this.languageService.getOneByCode({ code: bulkCreateSentenceDto.language });
+      console.log('Language found:', language);
+      if (!language) {
+        throw new NotFoundException(`Language with code ${bulkCreateSentenceDto.language} not found`);
+      }
+      // If document_id is provided, add it to all sentences
+      const sentencesToInsert = bulkCreateSentenceDto.document_id
+        ? bulkCreateSentenceDto.sentences.map(sentence => ({
+          ...sentence,
+          document_id: bulkCreateSentenceDto.document_id,
+          language: bulkCreateSentenceDto.language
+        }))
+        : bulkCreateSentenceDto.sentences;
+
+      const result = await this.sentenceModel.insertMany(
+        sentencesToInsert,
+        { ordered: false } // Continue inserting even if some fail
+      );
+      return {
+        success: true,
+        insertedCount: result.length,
+        sentences: result,
+        document_id: bulkCreateSentenceDto.document_id,
+      };
+    } catch (error) {
+      // Handle duplicate key errors or other validation errors
+      if (error.writeErrors) {
+        const successfulInserts = error.insertedDocs || [];
+        return {
+          success: false,
+          insertedCount: successfulInserts.length,
+          sentences: successfulInserts,
+          document_id: bulkCreateSentenceDto.document_id,
+          errors: error.writeErrors.map(err => ({
+            index: err.index,
+            error: err.errmsg,
+          })),
+        };
+      }
+      throw error;
+    }
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} sentence`;
+  async findAll() {
+    return this.sentenceModel.find().exec();
   }
 
-  update(id: number, updateSentenceDto: UpdateSentenceDto) {
-    return `This action updates a #${id} sentence`;
+  async findOne(id: string) {
+    return this.sentenceModel.findById(id).exec();
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} sentence`;
+  async update(id: string, updateSentenceDto: UpdateSentenceDto) {
+    return this.sentenceModel
+      .findByIdAndUpdate(id, updateSentenceDto, { new: true })
+      .exec();
+  }
+
+  async remove(id: string) {
+    return this.sentenceModel.findByIdAndDelete(id).exec();
+  }
+
+  async findByBiasCategory(biasCategory: string) {
+    return this.sentenceModel.find({ bias_category: biasCategory }).exec();
+  }
+
+  async findByLanguage(language: string) {
+    return this.sentenceModel.find({ language }).exec();
+  }
+
+  async findByDocumentId(documentId: string) {
+    return this.sentenceModel.find({ document_id: documentId }).exec();
+  }
+
+  async deleteByDocumentId(documentId: string) {
+    const result = await this.sentenceModel.deleteMany({ document_id: documentId }).exec();
+    return {
+      success: true,
+      deletedCount: result.deletedCount,
+      document_id: documentId,
+    };
+  }
+
+  async getDocumentIds() {
+    const documents = await this.sentenceModel.distinct('document_id').exec();
+    return documents.filter(doc => doc); // Filter out null/undefined values
+  }
+
+  async getDocumentStats() {
+    const pipeline = [
+      { $match: { document_id: { $exists: true, $ne: null } } },
+      {
+        $group: {
+          _id: '$document_id',
+          count: { $sum: 1 },
+          languages: { $addToSet: '$language' },
+          bias_categories: { $addToSet: '$bias_category' },
+          created_at: { $min: '$created_at' }
+        }
+      },
+      { $sort: { created_at: -1 as -1 } }
+    ];
+
+    return this.sentenceModel.aggregate(pipeline).exec();
   }
 }

@@ -8,5 +8,6 @@ import { LanguageSchema } from './language.schema';
   controllers: [LanguageController],
   providers: [MongooseModule, LanguageService],
   imports: [MongooseModule.forFeature([{ name: 'Language', schema: LanguageSchema }])],
+  exports: [LanguageService],
 })
 export class LanguageModule { }

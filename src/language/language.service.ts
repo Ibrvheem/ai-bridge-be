@@ -25,6 +25,20 @@ export class LanguageService {
       throw new InternalServerErrorException(err);
     }
   }
+
+  async getOneByCode({ code }: { code: string }) {
+    console.log(code)
+    try {
+      const response = await this.languageModel.findOne({
+        code
+      })
+
+      return response;
+    } catch (error) {
+      throw new InternalServerErrorException(error);
+
+    }
+  }
   async remove(id: string) {
     try {
       const response = await this.languageModel.findByIdAndDelete(id);

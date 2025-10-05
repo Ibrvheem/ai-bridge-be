@@ -5,6 +5,7 @@ export const Sentences = new mongoose.Schema({
   original_content: { type: String, },
   bias_category: { type: String, unique: true },
   language: { type: String, },
+  document_id: { type: String, },
   created_at: { type: Date, default: Date.now },
   updated_at: { type: Date, default: Date.now },
 }, {
@@ -17,6 +18,7 @@ export interface Sentences {
   original_content: string;
   bias_category: string;
   language: string;
+  document_id: string;
   created_at: string;
   updated_at: string;
 }
