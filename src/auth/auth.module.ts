@@ -16,21 +16,19 @@ import { UsersModule } from 'src/users/users.module';
     ConfigModule,
     UsersModule,
     JwtModule.registerAsync({
-      imports: [ConfigModule, UsersModule],
+      imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: async (configService: ConfigService) => ({
         secret: configService.get<string>('JWT_SECRET'),
-        signOptions: { expiresIn: '0' }, // Setting expiresIn to '0' to never expire
+        signOptions: { expiresIn: '8h' },
       }),
     }),
   ],
   controllers: [AuthController],
   providers: [
     AuthService,
-    UsersService,
-    DatabaseService,
     LocalStrategy,
     JwtStrategy,
   ],
 })
-export class AuthModule {}
+export class AuthModule { }
