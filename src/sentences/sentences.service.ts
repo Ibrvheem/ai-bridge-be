@@ -41,10 +41,13 @@ export class SentencesService {
         : bulkCreateSentenceDto.sentences.map(sentence => ({
           ...sentence,
           language: languageToUse
-        })); const result = await this.sentenceModel.insertMany(
-          sentencesToInsert,
-          { ordered: false } // Continue inserting even if some fail
-        );
+        }));
+
+      const result = await this.sentenceModel.insertMany(
+        sentencesToInsert,
+        { ordered: false } // Continue inserting even if some fail
+      );
+
       return {
         success: true,
         insertedCount: result.length,

@@ -12,6 +12,11 @@ export const Sentences = new mongoose.Schema({
   timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }
 });
 
+// Critical indexes for performance
+Sentences.index({ sentence: 1, original_content: 1 }); // For duplicate detection
+Sentences.index({ document_id: 1 }); // For document-based queries
+Sentences.index({ created_at: -1 }); // For time-based queries
+
 export interface Sentences {
   id: string;
   sentence: string;

@@ -30,6 +30,39 @@ export class DuplicateDetectionService {
         @InjectModel('Sentences') private sentenceModel: Model<Sentences>,
     ) { }
 
+    async bulkCheckDuplicates(sentences: CreateSentenceDto[]): Promise<Map<string, string>> {
+        try {
+            // Create search criteria for all sentences at once
+            const searchCriteria = sentences
+                .filter(s => s.sentence) // Only check sentences that have content
+                .map(s => ({
+                    sentence: s.sentence.trim(),
+                    original_content: s.original_content?.trim() || ''
+                }));
+
+            if (searchCriteria.length === 0) {
+                return new Map();
+            }
+
+            // Single database query to find all duplicates
+            const existingDuplicates = await this.sentenceModel.find({
+                $or: searchCriteria
+            }).select('sentence original_content document_id').lean().exec();
+
+            // Create lookup map for O(1) duplicate detection
+            const duplicateMap = new Map<string, string>();
+            existingDuplicates.forEach(doc => {
+                const key = `${doc.sentence}|${doc.original_content || ''}`;
+                duplicateMap.set(key, doc.document_id);
+            });
+
+            return duplicateMap;
+        } catch (error) {
+            console.error('Error in bulk duplicate check:', error);
+            return new Map();
+        }
+    }
+
     async checkForDuplicate(
         sentence: string,
         originalContent: string
@@ -64,53 +97,67 @@ export class DuplicateDetectionService {
         const duplicates: ProcessingResult['duplicates'] = [];
         const errors: ProcessingResult['errors'] = [];
 
-        for (let i = 0; i < sentences.length; i++) {
-            const sentence = sentences[i];
-            const rowNumber = i + 1;
+        // Step 1: Validate all sentences first
+        const validatedSentences = sentences.map((sentence, index) => ({
+            sentence,
+            rowNumber: index + 1,
+            isValid: Boolean(sentence.sentence)
+        }));
+
+        // Collect validation errors
+        validatedSentences.forEach(({ sentence, rowNumber, isValid }) => {
+            if (!isValid) {
+                errors.push({
+                    row_number: rowNumber,
+                    error: 'Missing required field: sentence',
+                });
+            }
+        });
+
+        // Get only valid sentences for duplicate checking
+        const sentencesToCheck = validatedSentences
+            .filter(({ isValid }) => isValid)
+            .map(({ sentence }) => sentence);
+
+        if (sentencesToCheck.length === 0) {
+            return { validSentences, duplicates, errors };
+        }
+
+        // Step 2: Bulk duplicate detection (single database query)
+        const duplicateMap = await this.bulkCheckDuplicates(sentencesToCheck);
+
+        // Step 3: Process results using the duplicate map
+        validatedSentences.forEach(({ sentence, rowNumber, isValid }) => {
+            if (!isValid) return; // Skip invalid sentences (already added to errors)
 
             try {
-                // Validate required fields - only sentence is required now
-                if (!sentence.sentence) {
-                    errors.push({
-                        row_number: rowNumber,
-                        error: 'Missing required field: sentence',
-                    });
-                    continue;
-                }                // Check for duplicates
-                const duplicateCheck = await this.checkForDuplicate(
-                    sentence.sentence,
-                    sentence.original_content || ''
-                );
+                const duplicateKey = `${sentence.sentence.trim()}|${sentence.original_content?.trim() || ''}`;
+                const existingDocumentId = duplicateMap.get(duplicateKey);
 
-                if (duplicateCheck.isDuplicate) {
+                if (existingDocumentId) {
+                    // Found duplicate
                     duplicates.push({
                         sentence: sentence.sentence,
                         original_content: sentence.original_content || '',
-                        existing_document_id: duplicateCheck.existingDocumentId!,
+                        existing_document_id: existingDocumentId,
                         row_number: rowNumber
                     });
-                    continue;
+                } else {
+                    // Valid sentence, add to processing list
+                    validSentences.push({
+                        ...sentence,
+                        document_id: documentId
+                    });
                 }
-
-                // Add to valid sentences with document_id
-                validSentences.push({
-                    ...sentence,
-                    document_id: documentId
-                });
-
             } catch (error) {
                 errors.push({
                     row_number: rowNumber,
                     error: error.message || 'Unknown processing error',
                 });
             }
-        }
+        });
 
-        return {
-            validSentences,
-            duplicates,
-            errors
-        };
+        return { validSentences, duplicates, errors };
     }
 
     async getBatchDuplicateStats(documentId: string) {
