@@ -18,6 +18,8 @@ import { CreateSentenceDto } from './dto/create-sentence.dto';
 import { UpdateSentenceDto } from './dto/update-sentence.dto';
 import { BulkCreateSentenceDto } from './dto/bulk-create-sentence.dto';
 import { CsvParserService } from '../lib/csv-parser.service';
+import { DuplicateDetectionService } from '../lib/duplicate-detection.service';
+import { DocumentTrackingService } from '../lib/document-tracking.service';
 import { UploadService } from '../upload/upload.service';
 import { User } from 'decorators/user.decorator';
 import { randomUUID } from 'crypto';
@@ -29,12 +31,14 @@ export class SentencesController {
   constructor(
     private readonly sentencesService: SentencesService,
     private readonly csvParserService: CsvParserService,
+    private readonly duplicateDetectionService: DuplicateDetectionService,
+    private readonly documentTrackingService: DocumentTrackingService,
     private readonly uploadService: UploadService,
   ) { }
 
   @Get('csv-template')
   downloadCsvTemplate(@Res() res: Response) {
-    const csvContent = 'sentence,original_content,bias_category,language\n"This is a sample sentence.","Original content here","gender","en"\n"Another example sentence.","More original content","racial","en"\n"Third example.","Original text","age","es"';
+    const csvContent = 'sentence,original_content\n"This is a sample sentence.","Original content here"\n"Another example sentence.","More original content"\n"Third example.","Original text"';
 
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader('Content-Disposition', 'attachment; filename="sentences-template.csv"');
@@ -55,54 +59,91 @@ export class SentencesController {
   async uploadCsv(
     @User() user,
     @UploadedFile() file: Express.Multer.File,
-    @Body('language') language: string,
   ) {
     if (!file) {
       throw new BadRequestException('No file uploaded');
     }
 
     // Validate file type
-    const allowedTypes = [
-      'text/csv',
-      'application/vnd.ms-excel',
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    ];
+    const allowedTypes = ['text/csv', 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'];
     if (!allowedTypes.includes(file.mimetype)) {
       throw new BadRequestException('Only CSV and Excel files are allowed');
     }
 
-    if (!language) {
-      throw new BadRequestException('Language field is required');
-    }
+    const startTime = Date.now();
+    const documentId = randomUUID();
 
     try {
-      // Generate unique document ID for this upload
-      const documentId = randomUUID();
-
       // 1. Parse the CSV/XLSX file
-      const sentences = await this.csvParserService.parseFile(
-        file.buffer,
-        file.originalname,
-        documentId,
-      );
-      console.log(sentences)
+      const parsedSentences = await this.csvParserService.parseFile(file.buffer, file.originalname);
 
-      if (sentences.length === 0) {
+      if (parsedSentences.length === 0) {
         throw new BadRequestException('No valid sentences found in the uploaded file');
       }
 
       // 2. Upload file to S3
-      const filePath = `csv-uploads/${language}/${user.userId}/${documentId}-${file.originalname}`;
+      const filePath = `${user.userId}/csv-uploads/${documentId}-${file.originalname}`;
       const uploadResult = await this.uploadService.upload({
         filePath,
         file: file.buffer,
       });
 
-
-      const bulkResult = await this.sentencesService.bulkCreate({
-        sentences,
+      // 3. Create document tracking record
+      await this.documentTrackingService.createDocumentRecord({
         document_id: documentId,
-        language,
+        user_id: user.userId,
+        original_filename: file.originalname,
+        s3_key: uploadResult.key,
+        file_size: file.size,
+        mime_type: file.mimetype,
+        total_rows: parsedSentences.length
+      });
+
+      // 4. Process sentences with duplicate detection
+      const processingResult = await this.duplicateDetectionService.processSentencesWithDuplicateCheck(
+        parsedSentences,
+        documentId
+      );
+
+      // 5. Insert valid (non-duplicate) sentences
+      let bulkResult: { success: boolean; insertedCount: number; errors: any[]; document_id?: string } = {
+        success: true,
+        insertedCount: 0,
+        errors: []
+      };
+
+      if (processingResult.validSentences.length > 0) {
+        const result = await this.sentencesService.bulkCreate({
+          sentences: processingResult.validSentences
+          // No default language - will be set during annotation
+        });
+
+        bulkResult = {
+          success: result.success,
+          insertedCount: result.insertedCount,
+          errors: result.errors || [],
+          document_id: result.document_id
+        };
+      }
+
+      // 6. Calculate processing time
+      const processingTimeMs = Date.now() - startTime;
+
+      // 7. Update document tracking record with results
+      await this.documentTrackingService.updateDocumentRecord(documentId, {
+        successful_inserts: bulkResult.insertedCount,
+        failed_inserts: processingResult.errors.length + (bulkResult.errors?.length || 0),
+        duplicate_count: processingResult.duplicates.length,
+        duplicates: processingResult.duplicates,
+        errors: [
+          ...processingResult.errors,
+          ...(bulkResult.errors || []).map((err, index) => ({
+            row_number: index + 1,
+            error: err.error || 'Database insertion error'
+          }))
+        ],
+        processing_time_ms: processingTimeMs,
+        status: 'completed'
       });
 
       return {
@@ -114,13 +155,32 @@ export class SentencesController {
           uploadSuccess: uploadResult.success,
         },
         processing: {
-          totalSentences: sentences.length,
-          insertedCount: bulkResult.insertedCount,
+          totalRows: parsedSentences.length,
+          successfulInserts: bulkResult.insertedCount,
+          duplicatesFound: processingResult.duplicates.length,
+          errorsFound: processingResult.errors.length + (bulkResult.errors?.length || 0),
+          processingTimeMs,
           success: bulkResult.success,
-          errors: bulkResult.errors || [],
         },
+        duplicates: processingResult.duplicates,
+        // No need to map as the structure already matches
+        errors: processingResult.errors
       };
+
     } catch (error) {
+      // Update document tracking record with failure
+      await this.documentTrackingService.updateDocumentRecord(documentId, {
+        successful_inserts: 0,
+        failed_inserts: 0,
+        duplicate_count: 0,
+        processing_time_ms: Date.now() - startTime,
+        status: 'failed',
+        errors: [{
+          row_number: 0,
+          error: error.message || 'Processing failed'
+        }]
+      });
+
       throw new BadRequestException(`Failed to process file: ${error.message}`);
     }
   }
@@ -158,6 +218,41 @@ export class SentencesController {
   @Delete('documents/:documentId')
   deleteByDocumentId(@Param('documentId') documentId: string) {
     return this.sentencesService.deleteByDocumentId(documentId);
+  }
+
+  @Get('upload-history')
+  getUploadHistory(@User() user) {
+    return this.documentTrackingService.getAllDocuments(user.userId);
+  }
+
+  @Get('upload-stats')
+  getUploadStats(@User() user) {
+    return this.documentTrackingService.getDocumentStats(user.userId);
+  }
+
+  @Get('duplicate-report')
+  getDuplicateReport(@User() user) {
+    return this.documentTrackingService.getDuplicateReport(user.userId);
+  }
+
+  @Get('processing-history')
+  getProcessingHistory(@User() user) {
+    return this.documentTrackingService.getProcessingHistory(30, user.userId);
+  }
+
+  @Get('upload-details/:documentId')
+  async getUploadDetails(@Param('documentId') documentId: string, @User() user) {
+    const documentRecord = await this.documentTrackingService.getDocumentRecord(documentId);
+    if (!documentRecord) {
+      throw new BadRequestException('Document not found');
+    }
+
+    // Ensure user owns this document or is admin
+    if (documentRecord.user_id !== user.userId) {
+      throw new BadRequestException('Access denied');
+    }
+
+    return documentRecord;
   }
 
   @Get(':id')

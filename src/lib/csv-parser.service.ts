@@ -13,7 +13,7 @@ export interface CsvRow {
 
 @Injectable()
 export class CsvParserService {
-    async parseCsv(buffer: Buffer, documentId?: string): Promise<CreateSentenceDto[]> {
+    async parseCsv(buffer: Buffer): Promise<CreateSentenceDto[]> {
         return new Promise((resolve, reject) => {
             const results: CreateSentenceDto[] = [];
             const stream = Readable.from(buffer);
@@ -21,14 +21,13 @@ export class CsvParserService {
             stream
                 .pipe(csv())
                 .on('data', (row: CsvRow) => {
-                    // Validate and map CSV row to CreateSentenceDto
-                    if (row.sentence && row.bias_category) {
+                    // Only validate sentence is required, others are optional
+                    if (row.sentence) {
                         results.push({
                             sentence: row.sentence.trim(),
-                            original_content: row.original_content?.trim() || '',
-                            bias_category: row.bias_category.trim(),
-                            language: row.language?.trim() || 'en',
-                            document_id: documentId,
+                            original_content: row.original_content?.trim(),
+                            bias_category: row.bias_category?.trim(),
+                            language: row.language?.trim(),
                         });
                     }
                 })
@@ -39,7 +38,9 @@ export class CsvParserService {
                     reject(error);
                 });
         });
-    } async parseXlsx(buffer: Buffer, documentId?: string): Promise<CreateSentenceDto[]> {
+    }
+
+    async parseXlsx(buffer: Buffer): Promise<CreateSentenceDto[]> {
         try {
             const workbook = XLSX.read(buffer, { type: 'buffer' });
             const sheetName = workbook.SheetNames[0];
@@ -48,32 +49,29 @@ export class CsvParserService {
             // Convert to JSON
             const jsonData = XLSX.utils.sheet_to_json(worksheet) as CsvRow[];
 
-            // Map to CreateSentenceDto
+            // Map to CreateSentenceDto - only sentence is required
             const results: CreateSentenceDto[] = jsonData
-                .filter(row => row.sentence && row.bias_category)
+                .filter(row => row.sentence) // Only require sentence
                 .map(row => ({
                     sentence: row.sentence!.toString().trim(),
-                    original_content: row.original_content?.toString().trim() || '',
-                    bias_category: row.bias_category!.toString().trim(),
-                    language: row.language?.toString().trim() || 'en',
-                    document_id: documentId,
-                }));
-
-            return results;
+                    original_content: row.original_content?.toString().trim(),
+                    bias_category: row.bias_category?.toString().trim(),
+                    language: row.language?.toString().trim(),
+                })); return results;
         } catch (error) {
             throw new Error(`Failed to parse XLSX file: ${error.message}`);
         }
     }
 
-    async parseFile(buffer: Buffer, filename: string, documentId?: string): Promise<CreateSentenceDto[]> {
+    async parseFile(buffer: Buffer, filename: string): Promise<CreateSentenceDto[]> {
         const extension = filename.toLowerCase().split('.').pop();
 
         switch (extension) {
             case 'csv':
-                return this.parseCsv(buffer, documentId);
+                return this.parseCsv(buffer);
             case 'xlsx':
             case 'xls':
-                return this.parseXlsx(buffer, documentId);
+                return this.parseXlsx(buffer);
             default:
                 throw new Error(`Unsupported file format: ${extension}`);
         }

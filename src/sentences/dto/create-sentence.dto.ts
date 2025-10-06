@@ -5,18 +5,18 @@ export class CreateSentenceDto {
     sentence: string;
 
     @IsString()
-    language: string
-
-    @IsString()
     @IsOptional()
     original_content?: string;
 
     @IsString()
-    bias_category: string;
+    @IsOptional()
+    bias_category?: string;
+
+    @IsString()
+    @IsOptional()
+    language?: string;
 
     @IsString()
     @IsOptional()
     document_id?: string;
-
-
 }

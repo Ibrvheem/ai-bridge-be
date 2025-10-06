@@ -1,11 +1,11 @@
 import mongoose from 'mongoose';
 
 export const Sentences = new mongoose.Schema({
-  sentence: { type: String, },
-  original_content: { type: String, },
-  bias_category: { type: String, unique: true },
-  language: { type: String, },
-  document_id: { type: String, },
+  sentence: { type: String, required: true },
+  original_content: { type: String },
+  bias_category: { type: String },
+  language: { type: String },
+  document_id: { type: String },
   created_at: { type: Date, default: Date.now },
   updated_at: { type: Date, default: Date.now },
 }, {
@@ -15,10 +15,10 @@ export const Sentences = new mongoose.Schema({
 export interface Sentences {
   id: string;
   sentence: string;
-  original_content: string;
-  bias_category: string;
-  language: string;
-  document_id: string;
+  original_content?: string;
+  bias_category?: string;
+  language?: string;
+  document_id?: string;
   created_at: string;
   updated_at: string;
 }

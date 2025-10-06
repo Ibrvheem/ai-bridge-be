@@ -1,4 +1,4 @@
-import { IsArray, ValidateNested, IsString, IsOptional, isString } from 'class-validator';
+import { IsArray, ValidateNested, IsString, IsOptional } from 'class-validator';
 import { Type } from 'class-transformer';
 import { CreateSentenceDto } from './create-sentence.dto';
 
@@ -13,7 +13,8 @@ export class BulkCreateSentenceDto {
     document_id?: string;
 
     @IsString()
-    language: string
+    @IsOptional()
+    language?: string;
 }
 
 export class UploadCsvDto {

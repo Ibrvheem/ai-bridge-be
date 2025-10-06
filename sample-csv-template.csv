@@ -1,4 +1,4 @@
-sentence,original_content,bias_category,language
-"This is a sample sentence.","Original content here","gender","en"
-"Another example sentence.","More original content","racial","en"
-"Third example.","Original text","age","es"
+sentence,original_content
+"This is a sample sentence.","Original content here"
+"Another example sentence.","More original content"
+"Third example.","Original text"

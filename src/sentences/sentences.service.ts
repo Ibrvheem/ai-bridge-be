@@ -21,29 +21,36 @@ export class SentencesService {
 
   async bulkCreate(bulkCreateSentenceDto: BulkCreateSentenceDto) {
     try {
-      const language = await this.languageService.getOneByCode({ code: bulkCreateSentenceDto.language });
-      console.log('Language found:', language);
-      if (!language) {
-        throw new NotFoundException(`Language with code ${bulkCreateSentenceDto.language} not found`);
+      // Language is optional during upload, will be set during annotation
+      let languageToUse = undefined;
+
+      if (bulkCreateSentenceDto.language) {
+        const language = await this.languageService.getOneByCode({ code: bulkCreateSentenceDto.language });
+        if (language) {
+          languageToUse = bulkCreateSentenceDto.language;
+        }
       }
+
       // If document_id is provided, add it to all sentences
       const sentencesToInsert = bulkCreateSentenceDto.document_id
         ? bulkCreateSentenceDto.sentences.map(sentence => ({
           ...sentence,
           document_id: bulkCreateSentenceDto.document_id,
-          language: bulkCreateSentenceDto.language
+          language: languageToUse
         }))
-        : bulkCreateSentenceDto.sentences;
-
-      const result = await this.sentenceModel.insertMany(
-        sentencesToInsert,
-        { ordered: false } // Continue inserting even if some fail
-      );
+        : bulkCreateSentenceDto.sentences.map(sentence => ({
+          ...sentence,
+          language: languageToUse
+        })); const result = await this.sentenceModel.insertMany(
+          sentencesToInsert,
+          { ordered: false } // Continue inserting even if some fail
+        );
       return {
         success: true,
         insertedCount: result.length,
         sentences: result,
         document_id: bulkCreateSentenceDto.document_id,
+        errors: []
       };
     } catch (error) {
       // Handle duplicate key errors or other validation errors
