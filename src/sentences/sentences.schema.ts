@@ -3,7 +3,7 @@ import mongoose from 'mongoose';
 export const Sentences = new mongoose.Schema({
   sentence: { type: String, required: true },
   original_content: { type: String },
-  bias_category: { type: String },
+  bias_category: { type: String }, // Can be null/undefined, should NOT be unique
   language: { type: String },
   document_id: { type: String },
   created_at: { type: Date, default: Date.now },

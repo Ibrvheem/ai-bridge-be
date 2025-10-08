@@ -21,27 +21,13 @@ export class SentencesService {
 
   async bulkCreate(bulkCreateSentenceDto: BulkCreateSentenceDto) {
     try {
-      // Language is optional during upload, will be set during annotation
-      let languageToUse = undefined;
-
-      if (bulkCreateSentenceDto.language) {
-        const language = await this.languageService.getOneByCode({ code: bulkCreateSentenceDto.language });
-        if (language) {
-          languageToUse = bulkCreateSentenceDto.language;
-        }
-      }
-
       // If document_id is provided, add it to all sentences
-      const sentencesToInsert = bulkCreateSentenceDto.document_id
-        ? bulkCreateSentenceDto.sentences.map(sentence => ({
-          ...sentence,
-          document_id: bulkCreateSentenceDto.document_id,
-          language: languageToUse
-        }))
-        : bulkCreateSentenceDto.sentences.map(sentence => ({
-          ...sentence,
-          language: languageToUse
-        }));
+      // For language: use per-row language if present, otherwise fallback to bulkCreateSentenceDto.language
+      const sentencesToInsert = bulkCreateSentenceDto.sentences.map(sentence => ({
+        ...sentence,
+        document_id: bulkCreateSentenceDto.document_id,
+        language: sentence.language || bulkCreateSentenceDto.language
+      }));
 
       const result = await this.sentenceModel.insertMany(
         sentencesToInsert,
@@ -56,21 +42,36 @@ export class SentencesService {
         errors: []
       };
     } catch (error) {
-      // Handle duplicate key errors or other validation errors
-      if (error.writeErrors) {
+      console.error('Bulk insert error:', error);
+
+      // Handle different types of MongoDB bulk insert errors
+      if (error.writeErrors || error.insertedDocs !== undefined) {
         const successfulInserts = error.insertedDocs || [];
+        const writeErrors = error.writeErrors || [];
+
         return {
           success: false,
           insertedCount: successfulInserts.length,
           sentences: successfulInserts,
           document_id: bulkCreateSentenceDto.document_id,
-          errors: error.writeErrors.map(err => ({
+          errors: writeErrors.map(err => ({
             index: err.index,
-            error: err.errmsg,
+            error: err.errmsg || err.message || 'Database insertion error',
           })),
         };
       }
-      throw error;
+
+      // Handle other types of errors (validation, connection, etc.)
+      return {
+        success: false,
+        insertedCount: 0,
+        sentences: [],
+        document_id: bulkCreateSentenceDto.document_id,
+        errors: [{
+          index: 0,
+          error: error.message || 'Unknown database error'
+        }]
+      };
     }
   }
 

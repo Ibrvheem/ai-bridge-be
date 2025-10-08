@@ -114,7 +114,8 @@ export class SentencesController {
 
       if (processingResult.validSentences.length > 0) {
         const result = await this.sentencesService.bulkCreate({
-          sentences: processingResult.validSentences
+          sentences: processingResult.validSentences,
+          document_id: documentId
           // No default language - will be set during annotation
         });
 
@@ -137,8 +138,8 @@ export class SentencesController {
         duplicates: processingResult.duplicates,
         errors: [
           ...processingResult.errors,
-          ...(bulkResult.errors || []).map((err, index) => ({
-            row_number: index + 1,
+          ...(bulkResult.errors || []).map((err) => ({
+            row_number: err.index + 1, // Use the actual index from MongoDB error
             error: err.error || 'Database insertion error'
           }))
         ],
