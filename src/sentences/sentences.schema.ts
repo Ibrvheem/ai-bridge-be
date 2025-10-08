@@ -3,11 +3,12 @@ import mongoose from 'mongoose';
 export const Sentences = new mongoose.Schema({
   sentence: { type: String, required: true },
   original_content: { type: String },
-  bias_category: { type: String }, // Can be null/undefined, should NOT be unique
+  bias_category: { type: String },
   language: { type: String },
   document_id: { type: String },
   created_at: { type: Date, default: Date.now },
   updated_at: { type: Date, default: Date.now },
+  user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true }
 }, {
   timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }
 });
@@ -24,6 +25,7 @@ export interface Sentences {
   bias_category?: string;
   language?: string;
   document_id?: string;
+  user_id: string;
   created_at: string;
   updated_at: string;
 }

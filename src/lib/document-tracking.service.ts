@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { DocumentUpload } from '../sentences/document-upload.schema';
+import { UploadService } from 'src/upload/upload.service';
 
 export interface CreateDocumentUploadDto {
     document_id: string;
@@ -35,6 +36,7 @@ export interface UpdateDocumentUploadDto {
 export class DocumentTrackingService {
     constructor(
         @InjectModel('DocumentUpload') private documentUploadModel: Model<DocumentUpload>,
+        private readonly uploadService: UploadService
     ) { }
 
     async createDocumentRecord(dto: CreateDocumentUploadDto): Promise<DocumentUpload> {
@@ -70,9 +72,13 @@ export class DocumentTrackingService {
 
     async getAllDocuments(user_id?: string): Promise<DocumentUpload[]> {
         const filter = user_id ? { user_id } : {};
-        return this.documentUploadModel.find(filter)
+        const history = await this.documentUploadModel.find(filter)
             .sort({ created_at: -1 })
             .exec();
+
+        return Promise.all(history.map(async (each) => {
+            return { ...each.toObject(), download_url: await this.uploadService.getFileUrl(each.s3_key) }
+        }))
     }
 
     async getDocumentStats(user_id?: string) {

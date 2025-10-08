@@ -27,7 +27,6 @@ export class LanguageService {
   }
 
   async getOneByCode({ code }: { code: string }) {
-    console.log(code)
     try {
       const response = await this.languageModel.findOne({
         code

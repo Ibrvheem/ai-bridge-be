@@ -14,19 +14,20 @@ export class SentencesService {
     private readonly languageService: LanguageService
   ) { }
 
-  async create(createSentenceDto: CreateSentenceDto) {
-    const createdSentence = new this.sentenceModel(createSentenceDto);
+  async create(createSentenceDto: CreateSentenceDto, user_id: string) {
+    const createdSentence = new this.sentenceModel({ ...createSentenceDto, user: user_id });
     return createdSentence.save();
   }
 
-  async bulkCreate(bulkCreateSentenceDto: BulkCreateSentenceDto) {
+  async bulkCreate(bulkCreateSentenceDto: BulkCreateSentenceDto, user_id: string) {
     try {
       // If document_id is provided, add it to all sentences
       // For language: use per-row language if present, otherwise fallback to bulkCreateSentenceDto.language
       const sentencesToInsert = bulkCreateSentenceDto.sentences.map(sentence => ({
         ...sentence,
         document_id: bulkCreateSentenceDto.document_id,
-        language: sentence.language || bulkCreateSentenceDto.language
+        language: sentence.language || bulkCreateSentenceDto.language,
+        user: user_id
       }));
 
       const result = await this.sentenceModel.insertMany(
@@ -76,7 +77,12 @@ export class SentencesService {
   }
 
   async findAll() {
-    return this.sentenceModel.find().exec();
+    const response = await this.sentenceModel
+      .find()
+      .populate('user', 'email') // Populate user details
+      .exec();
+
+    return response;
   }
 
   async findOne(id: string) {

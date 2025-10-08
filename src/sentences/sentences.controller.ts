@@ -46,13 +46,13 @@ export class SentencesController {
   }
 
   @Post()
-  create(@Body() createSentenceDto: CreateSentenceDto) {
-    return this.sentencesService.create(createSentenceDto);
+  create(@Body() createSentenceDto: CreateSentenceDto, @User() user) {
+    return this.sentencesService.create(createSentenceDto, user.userId);
   }
 
   @Post('bulk')
-  bulkCreate(@Body() bulkCreateSentenceDto: BulkCreateSentenceDto) {
-    return this.sentencesService.bulkCreate(bulkCreateSentenceDto);
+  bulkCreate(@Body() bulkCreateSentenceDto: BulkCreateSentenceDto, @User() user) {
+    return this.sentencesService.bulkCreate(bulkCreateSentenceDto, user.userId);
   }
   @Post('upload-csv')
   @UseInterceptors(FileInterceptor('file'))
@@ -117,7 +117,7 @@ export class SentencesController {
           sentences: processingResult.validSentences,
           document_id: documentId
           // No default language - will be set during annotation
-        });
+        }, user.userId);
 
         bulkResult = {
           success: result.success,
