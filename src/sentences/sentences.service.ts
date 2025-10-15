@@ -95,6 +95,18 @@ export class SentencesService {
 
     return response;
   }
+  async getAllAnnotatedSentences() {
+    const response = await this.sentenceModel
+      .find({
+        annotated_by: { $exists: true },
+      })
+      .populate('user', 'email') // Populate user details
+      .populate('annotated_by', 'email') // Populate annotated_by user details
+
+      .exec();
+
+    return response;
+  }
 
   async findOne(id: string) {
     return this.sentenceModel.findById(id).exec();

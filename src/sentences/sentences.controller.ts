@@ -191,6 +191,10 @@ export class SentencesController {
   getAllUnannotatedSentences() {
     return this.sentencesService.getAllUnannotatedSentences();
   }
+  @Get('annotated')
+  getAllAnnotatedSentences() {
+    return this.sentencesService.getAllAnnotatedSentences();
+  }
 
   @Get('by-category/:category')
   findByBiasCategory(@Param('category') category: string) {
