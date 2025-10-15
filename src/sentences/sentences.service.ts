@@ -6,6 +6,7 @@ import { UpdateSentenceDto } from './dto/update-sentence.dto';
 import { BulkCreateSentenceDto } from './dto/bulk-create-sentence.dto';
 import { Sentences } from './sentences.schema';
 import { LanguageService } from 'src/language/language.service';
+import { AnnotateSentenceDto } from './dto/annotate-sentences.dto';
 
 @Injectable()
 export class SentencesService {
@@ -84,6 +85,16 @@ export class SentencesService {
 
     return response;
   }
+  async getAllUnannotatedSentences() {
+    const response = await this.sentenceModel
+      .find({
+        annotated_by: { $exists: false },
+      })
+      .populate('user', 'email') // Populate user details
+      .exec();
+
+    return response;
+  }
 
   async findOne(id: string) {
     return this.sentenceModel.findById(id).exec();
@@ -141,5 +152,22 @@ export class SentencesService {
     ];
 
     return this.sentenceModel.aggregate(pipeline).exec();
+  }
+
+  async annotateSentence(id: string, userId: string, payload: AnnotateSentenceDto) {
+    return this.sentenceModel.findByIdAndUpdate(id, { ...payload, annotated_by: userId }, { new: true }).exec();
+  }
+
+  async getCategories() {
+    return [
+      { value: "GENDER", label: "Gender" },
+      { value: "RACE_ETHNICITY", label: "Race / ethnicity" },
+      { value: "AGE", label: "Age (young / middle / elderly; also continuous age ranges)" },
+      { value: "DISABILITY", label: "Disability (visible, invisible, physical, cognitive)" },
+      { value: "RELIGION", label: "Religion / belief system" },
+      { value: "NATIONALITY", label: "Nationality / immigration status" },
+      { value: "SOCIOECONOMIC", label: "Socioeconomic status (income, education)" },
+      { value: "NONE", label: "No specific bias" }
+    ];
   }
 }

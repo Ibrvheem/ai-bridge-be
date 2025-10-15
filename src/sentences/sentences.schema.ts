@@ -8,7 +8,8 @@ export const Sentences = new mongoose.Schema({
   document_id: { type: String },
   created_at: { type: Date, default: Date.now },
   updated_at: { type: Date, default: Date.now },
-  user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true }
+  user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  annotated_by: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
 }, {
   timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }
 });
@@ -25,6 +26,7 @@ export interface Sentences {
   bias_category?: string;
   language?: string;
   document_id?: string;
+  annotated_by?: string;
   user_id: string;
   created_at: string;
   updated_at: string;

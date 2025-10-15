@@ -24,6 +24,7 @@ import { UploadService } from '../upload/upload.service';
 import { User } from 'decorators/user.decorator';
 import { randomUUID } from 'crypto';
 import { Public } from 'decorators/public.decorator';
+import { AnnotateSentenceDto } from './dto/annotate-sentences.dto';
 
 
 @Controller('sentences')
@@ -186,9 +187,9 @@ export class SentencesController {
     }
   }
 
-  @Get()
-  findAll() {
-    return this.sentencesService.findAll();
+  @Get('unannotated')
+  getAllUnannotatedSentences() {
+    return this.sentencesService.getAllUnannotatedSentences();
   }
 
   @Get('by-category/:category')
@@ -256,9 +257,20 @@ export class SentencesController {
     return documentRecord;
   }
 
+
+  @Get('categories')
+  getCategories() {
+    return this.sentencesService.getCategories();
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.sentencesService.findOne(id);
+  }
+
+  @Patch('annotate/:id')
+  annotateSentence(@Param('id') id: string, @Body() annotateSentenceDto: AnnotateSentenceDto, @User() user) {
+    return this.sentencesService.annotateSentence(id, user.userId, annotateSentenceDto);
   }
 
   @Patch(':id')
