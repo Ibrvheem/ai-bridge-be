@@ -19,8 +19,11 @@ export class CsvParserService {
             const stream = Readable.from(buffer);
 
             stream
-                .pipe(csv())
+                .pipe(csv({
+                    mapHeaders: ({ header }) => header.trim().replace(/^\uFEFF/, ''), // handle BOM
+                }))
                 .on('data', (row: CsvRow) => {
+                    console.log("Parsing row:", row);
                     // Only validate sentence is required, others are optional
                     if (row.sentence) {
                         results.push({
@@ -32,9 +35,11 @@ export class CsvParserService {
                     }
                 })
                 .on('end', () => {
+                    console.log('CSV file successfully processed', results);
                     resolve(results);
                 })
                 .on('error', (error) => {
+                    console.log(error)
                     reject(error);
                 });
         });
@@ -65,9 +70,10 @@ export class CsvParserService {
 
     async parseFile(buffer: Buffer, filename: string): Promise<CreateSentenceDto[]> {
         const extension = filename.toLowerCase().split('.').pop();
-
+        console.log(extension, 'extension here')
         switch (extension) {
             case 'csv':
+                console.log("Parsing as CSV")
                 return this.parseCsv(buffer);
             case 'xlsx':
             case 'xls':
