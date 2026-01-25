@@ -14,6 +14,7 @@ import { UsersModule } from './users/users.module';
 import { BlogModule } from './blog/blog.module';
 import { LanguageModule } from './language/language.module';
 import { SentencesModule } from './sentences/sentences.module';
+import { WebScraperModule } from './web-scraper/web-scraper.module';
 
 @Module({
   imports: [
@@ -30,11 +31,12 @@ import { SentencesModule } from './sentences/sentences.module';
     DatabaseModule,
     AuthModule,
     UsersModule,
-    OtpModule,
+    // OtpModule,
     // UploadModule,
     BlogModule,
     LanguageModule,
-    SentencesModule
+    SentencesModule,
+    WebScraperModule,
   ],
   controllers: [AppController],
   providers: [
@@ -46,4 +48,4 @@ import { SentencesModule } from './sentences/sentences.module';
     JwtStrategy,
   ],
 })
-export class AppModule { }
+export class AppModule {}
