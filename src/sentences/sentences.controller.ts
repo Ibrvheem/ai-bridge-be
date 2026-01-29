@@ -39,10 +39,12 @@ export class SentencesController {
 
   @Get('csv-template')
   downloadCsvTemplate(@Res() res: Response) {
-    const csvContent = 'sentence,original_content\n"This is a sample sentence.","Original content here"\n"Another example sentence.","More original content"\n"Third example.","Original text"';
+    const csvContent = `language,script,country,region_dialect,source_type,source_ref,collection_date,text,domain,topic,theme,sensitive_characteristic,safety_flag,pii_removed,notes
+hausa,latin,Nigeria,standard_hausa,media,https://example.com/source,2026-01-25T09:00:00.000Z,"Sample text in Hausa language here.",media_and_online,news_reporting,public_interest,,safe,true,Sample note
+hausa,latin,Nigeria,kano_dialect,community,,2026-01-25T09:00:00.000Z,"Another sample sentence.",culture_and_religion,religious_content,stereotypes,gender,safe,true,`;
 
     res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', 'attachment; filename="sentences-template.csv"');
+    res.setHeader('Content-Disposition', 'attachment; filename="data-collection-template.csv"');
     res.send(csvContent);
   }
 
@@ -191,14 +193,10 @@ export class SentencesController {
   getAllUnannotatedSentences() {
     return this.sentencesService.getAllUnannotatedSentences();
   }
+
   @Get('annotated')
   getAllAnnotatedSentences() {
     return this.sentencesService.getAllAnnotatedSentences();
-  }
-
-  @Get('by-category/:category')
-  findByBiasCategory(@Param('category') category: string) {
-    return this.sentencesService.findByBiasCategory(category);
   }
 
   @Get('by-language/:language')
@@ -206,65 +204,54 @@ export class SentencesController {
     return this.sentencesService.findByLanguage(language);
   }
 
-  @Get('by-document/:documentId')
-  findByDocumentId(@Param('documentId') documentId: string) {
-    return this.sentencesService.findByDocumentId(documentId);
+  @Get('by-country/:country')
+  findByCountry(@Param('country') country: string) {
+    return this.sentencesService.findByCountry(country);
   }
 
-  @Get('documents')
-  getDocumentIds() {
-    return this.sentencesService.getDocumentIds();
+  @Get('by-source-type/:sourceType')
+  findBySourceType(@Param('sourceType') sourceType: string) {
+    return this.sentencesService.findBySourceType(sourceType as any);
   }
 
-  @Get('documents/stats')
-  getDocumentStats() {
-    return this.sentencesService.getDocumentStats();
+  @Get('by-bias-label/:biasLabel')
+  findByBiasLabel(@Param('biasLabel') biasLabel: string) {
+    return this.sentencesService.findByBiasLabel(biasLabel as any);
   }
 
-  @Delete('documents/:documentId')
-  deleteByDocumentId(@Param('documentId') documentId: string) {
-    return this.sentencesService.deleteByDocumentId(documentId);
+  @Get('by-domain/:domain')
+  findByDomain(@Param('domain') domain: string) {
+    return this.sentencesService.findByDomain(domain as any);
   }
 
-  @Get('upload-history')
-  getUploadHistory(@User() user) {
-    return this.documentTrackingService.getAllDocuments(user.userId);
+  @Get('by-theme/:theme')
+  findByTheme(@Param('theme') theme: string) {
+    return this.sentencesService.findByTheme(theme as any);
   }
 
-  @Get('upload-stats')
-  getUploadStats(@User() user) {
-    return this.documentTrackingService.getDocumentStats(user.userId);
+  @Get('by-safety-flag/:safetyFlag')
+  findBySafetyFlag(@Param('safetyFlag') safetyFlag: string) {
+    return this.sentencesService.findBySafetyFlag(safetyFlag as any);
   }
 
-  @Get('duplicate-report')
-  getDuplicateReport(@User() user) {
-    return this.documentTrackingService.getDuplicateReport(user.userId);
+  @Get('by-qa-status/:qaStatus')
+  findByQAStatus(@Param('qaStatus') qaStatus: string) {
+    return this.sentencesService.findByQAStatus(qaStatus as any);
   }
-
-  @Get('processing-history')
-  getProcessingHistory(@User() user) {
-    return this.documentTrackingService.getProcessingHistory(30, user.userId);
-  }
-
-  @Get('upload-details/:documentId')
-  async getUploadDetails(@Param('documentId') documentId: string, @User() user) {
-    const documentRecord = await this.documentTrackingService.getDocumentRecord(documentId);
-    if (!documentRecord) {
-      throw new BadRequestException('Document not found');
-    }
-
-    // Ensure user owns this document or is admin
-    if (documentRecord.user_id !== user.userId) {
-      throw new BadRequestException('Access denied');
-    }
-
-    return documentRecord;
-  }
-
 
   @Get('categories')
   getCategories() {
     return this.sentencesService.getCategories();
+  }
+
+  @Get('stats')
+  getStats() {
+    return this.sentencesService.getStats();
+  }
+
+  @Get('stats/annotations')
+  getAnnotationStats() {
+    return this.sentencesService.getAnnotationStats();
   }
 
   @Get(':id')

@@ -25,7 +25,7 @@ export class UploadService {
     try {
       await this.s3Client.send(
         new PutObjectCommand({
-          Bucket: 'assistry',
+          Bucket: 'ai-bridge',
           Key: filePath,
           Body: file,
         }),
@@ -43,7 +43,7 @@ export class UploadService {
   async getFileUrl(filePath: string, expiresIn = 3600): Promise<string> {
     try {
       const command = new GetObjectCommand({
-        Bucket: 'assistry',
+        Bucket: 'ai-bridge',
         Key: filePath,
       });
 
@@ -58,7 +58,7 @@ export class UploadService {
     try {
       await this.s3Client.send(
         new DeleteObjectCommand({
-          Bucket: 'assistry',
+          Bucket: 'ai-bridge',
           Key: filePath,
         }),
       );
