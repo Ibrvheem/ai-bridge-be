@@ -71,8 +71,11 @@ export class BBCYorubaScraperService {
   /**
    * Get the current scraping status
    */
-  getStatus(): { isRunning: boolean; categories: { name: string; path: string }[] } {
-    return { 
+  getStatus(): {
+    isRunning: boolean;
+    categories: { name: string; path: string }[];
+  } {
+    return {
       isRunning: this.isRunning,
       categories: this.categories,
     };
@@ -120,7 +123,10 @@ export class BBCYorubaScraperService {
       );
 
       // Step 1: Collect article URLs
-      const articleUrls = await this.collectArticleUrls(maxArticles, categoryName);
+      const articleUrls = await this.collectArticleUrls(
+        maxArticles,
+        categoryName,
+      );
       this.logger.log(`Found ${articleUrls.length} article URLs`);
 
       if (articleUrls.length === 0) {
@@ -141,7 +147,10 @@ export class BBCYorubaScraperService {
 
       for (const urlInfo of articleUrls) {
         try {
-          const article = await this.scrapeArticle(urlInfo.url, urlInfo.category);
+          const article = await this.scrapeArticle(
+            urlInfo.url,
+            urlInfo.category,
+          );
           if (article && article.sentences.length > 0) {
             for (const sentence of article.sentences) {
               allSentences.push({
@@ -156,7 +165,10 @@ export class BBCYorubaScraperService {
           // Rate limiting - wait 1.5 seconds between requests (BBC may be stricter)
           await this.sleep(1500);
         } catch (error) {
-          this.logger.warn(`Failed to scrape article: ${urlInfo.url}`, error.message);
+          this.logger.warn(
+            `Failed to scrape article: ${urlInfo.url}`,
+            error.message,
+          );
         }
       }
 
@@ -174,8 +186,9 @@ export class BBCYorubaScraperService {
 
           try {
             // Use AI to analyze if it's a complete Yoruba sentence
-            const analysis =
-              await this.textProcessingService.analyzeYorubaText(sentence.text);
+            const analysis = await this.textProcessingService.analyzeYorubaText(
+              sentence.text,
+            );
 
             // Note: analyzeYorubaText maps isYoruba to the isHausa field in the interface
             if (analysis && analysis.isCompleteSentence && analysis.isHausa) {
@@ -252,11 +265,15 @@ export class BBCYorubaScraperService {
 
     // Determine which categories to scrape
     const categoriesToScrape = categoryName
-      ? this.categories.filter((c) => c.name.toLowerCase() === categoryName.toLowerCase())
+      ? this.categories.filter(
+          (c) => c.name.toLowerCase() === categoryName.toLowerCase(),
+        )
       : this.categories;
 
     if (categoriesToScrape.length === 0) {
-      this.logger.warn(`Category "${categoryName}" not found, scraping all categories`);
+      this.logger.warn(
+        `Category "${categoryName}" not found, scraping all categories`,
+      );
       categoriesToScrape.push(...this.categories);
     }
 
@@ -277,14 +294,18 @@ export class BBCYorubaScraperService {
       if (articleUrls.size >= maxArticles) break;
 
       try {
-        this.logger.log(`Fetching category ${category.name}: ${this.baseUrl}${category.path}`);
+        this.logger.log(
+          `Fetching category ${category.name}: ${this.baseUrl}${category.path}`,
+        );
         const response = await this.httpClient.get(category.path);
         const $ = cheerio.load(response.data);
 
         this.extractArticleLinks($, articleUrls, category.name);
         await this.sleep(1000);
       } catch (error) {
-        this.logger.warn(`Failed to fetch category ${category.name}: ${error.message}`);
+        this.logger.warn(
+          `Failed to fetch category ${category.name}: ${error.message}`,
+        );
       }
     }
 
@@ -316,7 +337,9 @@ export class BBCYorubaScraperService {
       $(selector).each((_, element) => {
         const href = $(element).attr('href');
         if (href && this.isValidArticleUrl(href)) {
-          const fullUrl = href.startsWith('http') ? href : `${this.baseUrl}${href}`;
+          const fullUrl = href.startsWith('http')
+            ? href
+            : `${this.baseUrl}${href}`;
           if (!articleUrls.has(fullUrl)) {
             articleUrls.set(fullUrl, category);
           }
@@ -331,17 +354,17 @@ export class BBCYorubaScraperService {
   private isValidArticleUrl(href: string): boolean {
     // BBC Yoruba article URLs typically contain /yoruba/ and have article-like patterns
     if (!href.includes('/yoruba/')) return false;
-    
+
     // Skip topic/category pages
     if (href.includes('/topics/')) return false;
-    
+
     // Skip video/media pages
     if (href.includes('/media/')) return false;
-    
+
     // Should have some path after /yoruba/
     const yorubaIndex = href.indexOf('/yoruba/');
     const afterYoruba = href.substring(yorubaIndex + 8);
-    
+
     // Articles typically have a longer path or contain "articles"
     return afterYoruba.length > 5 || href.includes('/articles/');
   }
@@ -349,7 +372,10 @@ export class BBCYorubaScraperService {
   /**
    * Scrape a single article and extract sentences
    */
-  private async scrapeArticle(url: string, category: string): Promise<BBCYorubaArticle | null> {
+  private async scrapeArticle(
+    url: string,
+    category: string,
+  ): Promise<BBCYorubaArticle | null> {
     try {
       this.logger.debug(`Scraping article: ${url}`);
 

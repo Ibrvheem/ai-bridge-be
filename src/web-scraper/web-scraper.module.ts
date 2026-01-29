@@ -13,6 +13,10 @@ import { BBCYorubaScraperService } from './bbc-yoruba-scraper.service';
     AlaroyeScraperService,
     BBCYorubaScraperService,
   ],
-  exports: [HausaTweetCollectorService, AlaroyeScraperService, BBCYorubaScraperService],
+  exports: [
+    HausaTweetCollectorService,
+    AlaroyeScraperService,
+    BBCYorubaScraperService,
+  ],
 })
 export class WebScraperModule {}
