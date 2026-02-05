@@ -15,6 +15,7 @@ import { BlogModule } from './blog/blog.module';
 import { LanguageModule } from './language/language.module';
 import { SentencesModule } from './sentences/sentences.module';
 import { WebScraperModule } from './web-scraper/web-scraper.module';
+import { AnnotationSessionsModule } from './annotation-sessions/annotation-sessions.module';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { WebScraperModule } from './web-scraper/web-scraper.module';
     LanguageModule,
     SentencesModule,
     WebScraperModule,
+    AnnotationSessionsModule,
   ],
   controllers: [AppController],
   providers: [
