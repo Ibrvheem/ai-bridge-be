@@ -1,5 +1,5 @@
 # Step 1: Build the Next.js app in a node container
-FROM node:latest as build
+FROM node:20-alpine as build
 
 # Set the working directory in the container
 WORKDIR /app
@@ -20,7 +20,7 @@ RUN npx prisma generate
 RUN npm run build
 
 # Step 2: Serve the Next.js app using a Node.js server
-FROM node:latest
+FROM node:20-alpine
 
 # Set the working directory in the container
 WORKDIR /app
