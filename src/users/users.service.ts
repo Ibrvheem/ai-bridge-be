@@ -8,7 +8,7 @@ import { User } from './user.schema';
 
 @Injectable()
 export class UsersService {
-  constructor(@InjectModel('User') private readonly userModel: Model<User>) { }
+  constructor(@InjectModel('User') private readonly userModel: Model<User>) {}
 
   async findUserByID(id: string) {
     const user = await this.userModel
@@ -21,7 +21,6 @@ export class UsersService {
   async findUserByEmail(email: string) {
     return await this.userModel.findOne({ email }).exec();
   }
-
 
   async createUser(payload: CreateUserDto) {
     const newUser = new this.userModel(payload);
@@ -42,10 +41,8 @@ export class UsersService {
     return await this.userModel.find();
   }
 
-
-
   async getMe(id: string) {
-    const user = await this.userModel.findOne({ _id: id }).select('-password'); // Excluding password
+    const user = await this.userModel.findOne({ _id: id }).select('-password');
     if (!user) {
       throw new BadRequestException('User not found');
     }

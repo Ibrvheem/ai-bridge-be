@@ -1,4 +1,4 @@
-sentence,original_content,language
-"This is a sample sentence.","Original content here",en
-"Another example sentence.","More original content",en
-"Third example.","Original text",en
+language,script,country,region_dialect,source_type,source_ref,collection_date,text,domain,topic,theme,sensitive_characteristic,safety_flag,pii_removed,notes
+hausa,latin,Nigeria,kano,community,,2026-01-25,"Sample text in Hausa language here.",media_and_online,news,public_interest,,safe,true,
+hausa,latin,Nigeria,standard,media,https://example.com,2026-01-25,"Another sample sentence.",culture_and_religion,traditions,stereotypes,gender,safe,true,Sample note
+hausa,latin,Nigeria,,interview,,2026-01-25,"Third example sentence.",education,schooling,public_interest,,safe,false,
