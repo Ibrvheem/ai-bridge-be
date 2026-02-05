@@ -10,6 +10,7 @@ import {
   UploadedFile,
   BadRequestException,
   Res,
+  Query,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Response } from 'express';
@@ -48,6 +49,19 @@ hausa,latin,Nigeria,kano_dialect,community,,2026-01-25T09:00:00.000Z,"Another sa
       'attachment; filename="data-collection-template.csv"',
     );
     res.send(csvContent);
+  }
+
+  @Get()
+  findAll(
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '20',
+    @Query('filter') filter?: string,
+  ) {
+    return this.sentencesService.findAllPaginated(
+      parseInt(page, 10) || 1,
+      parseInt(limit, 10) || 20,
+      filter,
+    );
   }
 
   @Post()
@@ -220,6 +234,26 @@ hausa,latin,Nigeria,kano_dialect,community,,2026-01-25T09:00:00.000Z,"Another sa
   @Get('annotated')
   getAllAnnotatedSentences() {
     return this.sentencesService.getAllAnnotatedSentences();
+  }
+
+  @Get('exportable')
+  getExportableSentences() {
+    return this.sentencesService.getExportableSentences();
+  }
+
+  @Get('export-stats')
+  getExportStats() {
+    return this.sentencesService.getExportStats();
+  }
+
+  @Get('export-history')
+  getExportHistory(@User() user) {
+    return this.sentencesService.getExportHistory(user.userId);
+  }
+
+  @Post('export')
+  exportAnnotations(@User() user, @Body() body: { file_name?: string }) {
+    return this.sentencesService.exportAnnotations(user.userId, body.file_name);
   }
 
   @Get('by-language/:language')

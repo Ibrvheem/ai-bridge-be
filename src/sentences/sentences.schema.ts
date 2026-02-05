@@ -103,6 +103,7 @@ export const Sentences = new mongoose.Schema(
     },
     annotation_time_seconds: { type: Number },
     document_id: { type: String }, // Track which upload batch this sentence belongs to
+    exported_at: { type: Date, default: null }, // Track when this sentence was exported
   },
   {
     timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' },
@@ -120,6 +121,8 @@ Sentences.index({ qa_status: 1 });
 Sentences.index({ annotator_id: 1 });
 Sentences.index({ collector_id: 1 });
 Sentences.index({ created_at: -1 });
+Sentences.index({ exported_at: 1 });
+Sentences.index({ bias_label: 1, exported_at: 1 }); // For finding unexported annotated sentences
 
 export interface Sentences {
   id: string;
@@ -150,6 +153,7 @@ export interface Sentences {
   qa_status?: string | null;
   annotation_time_seconds?: number;
   document_id?: string;
+  exported_at?: Date | null;
   created_at: Date;
   updated_at: Date;
 }
