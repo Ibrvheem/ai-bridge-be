@@ -1,5 +1,8 @@
-# Step 1: Build the Next.js app in a node container
-FROM node:20-alpine as build
+# Step 1: Build the NestJS app in a node container
+FROM node:20-slim as build
+
+# Install OpenSSL for Prisma
+RUN apt-get update -y && apt-get install -y openssl
 
 # Set the working directory in the container
 WORKDIR /app
@@ -19,8 +22,11 @@ RUN npx prisma generate
 # Build the application
 RUN npm run build
 
-# Step 2: Serve the Next.js app using a Node.js server
-FROM node:20-alpine
+# Step 2: Serve the NestJS app using a Node.js server
+FROM node:20-slim
+
+# Install OpenSSL for Prisma
+RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 
 # Set the working directory in the container
 WORKDIR /app
