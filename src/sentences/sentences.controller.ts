@@ -306,7 +306,7 @@ hausa,latin,Nigeria,kano_dialect,community,,2026-01-25T09:00:00.000Z,"Another sa
     return this.sentencesService.getStats();
   }
 
-  @Get('stats/annotations')
+  @Get('stats/sessions')
   getAnnotationStats() {
     return this.sentencesService.getAnnotationStats();
   }
