@@ -550,4 +550,235 @@ export class SentencesService {
       }),
     );
   }
+
+  // ==================== SESSION-BASED METHODS ====================
+
+  // Get sentences by document_id (session) with pagination
+  async getSentencesBySession(
+    documentId: string,
+    page: number = 1,
+    limit: number = 20,
+    filter?: string,
+  ) {
+    const skip = (page - 1) * limit;
+
+    // Base query for document
+    const queryFilter: any = { document_id: documentId };
+
+    // Add annotation filter
+    if (filter === 'annotated') {
+      queryFilter.bias_label = { $exists: true, $ne: null };
+    } else if (filter === 'unannotated') {
+      queryFilter.$or = [
+        { bias_label: { $exists: false } },
+        { bias_label: null },
+      ];
+    }
+
+    const [sentences, total] = await Promise.all([
+      this.sentenceModel
+        .find(queryFilter)
+        .sort({ created_at: 1 })
+        .skip(skip)
+        .limit(limit)
+        .populate('collector_id', 'email')
+        .populate('annotator_id', 'email')
+        .lean()
+        .exec(),
+      this.sentenceModel.countDocuments(queryFilter),
+    ]);
+
+    return {
+      data: sentences,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+        hasNext: page < Math.ceil(total / limit),
+        hasPrev: page > 1,
+      },
+    };
+  }
+
+  // Get session stats (annotation progress)
+  async getSessionStats(documentId: string) {
+    const [total, annotated, exported] = await Promise.all([
+      this.sentenceModel.countDocuments({ document_id: documentId }),
+      this.sentenceModel.countDocuments({
+        document_id: documentId,
+        bias_label: { $exists: true, $ne: null },
+      }),
+      this.sentenceModel.countDocuments({
+        document_id: documentId,
+        exported_at: { $exists: true, $ne: null },
+      }),
+    ]);
+
+    return {
+      total,
+      annotated,
+      unannotated: total - annotated,
+      exported,
+      exportable: annotated - exported,
+      progress: total > 0 ? Math.round((annotated / total) * 100) : 0,
+    };
+  }
+
+  // Get unannotated sentences for a session (for annotation)
+  async getSessionUnannotated(documentId: string) {
+    return this.sentenceModel
+      .find({
+        document_id: documentId,
+        $or: [{ bias_label: { $exists: false } }, { bias_label: null }],
+      })
+      .sort({ _id: 1 })
+      .lean()
+      .exec();
+  }
+
+  // Export session annotations
+  async exportSessionAnnotations(
+    documentId: string,
+    userId: string,
+    exportAll: boolean = false,
+  ) {
+    // Build query - either all annotated or only unexported
+    const query: any = {
+      document_id: documentId,
+      bias_label: { $exists: true, $ne: null },
+    };
+
+    if (!exportAll) {
+      query.$or = [{ exported_at: { $exists: false } }, { exported_at: null }];
+    }
+
+    const sentences = await this.sentenceModel
+      .find(query)
+      .populate('collector_id', 'email')
+      .populate('annotator_id', 'email')
+      .lean()
+      .exec();
+
+    if (sentences.length === 0) {
+      throw new BadRequestException(
+        exportAll
+          ? 'No annotated sentences found in this session'
+          : 'No unexported annotated sentences found in this session',
+      );
+    }
+
+    // Create CSV
+    const csvStringifier = createObjectCsvStringifier({
+      header: [
+        { id: 'language', title: 'language' },
+        { id: 'script', title: 'script' },
+        { id: 'country', title: 'country' },
+        { id: 'region_dialect', title: 'region_dialect' },
+        { id: 'source_type', title: 'source_type' },
+        { id: 'source_ref', title: 'source_ref' },
+        { id: 'collection_date', title: 'collection_date' },
+        { id: 'text', title: 'text' },
+        { id: 'domain', title: 'domain' },
+        { id: 'topic', title: 'topic' },
+        { id: 'theme', title: 'theme' },
+        { id: 'sensitive_characteristic', title: 'sensitive_characteristic' },
+        { id: 'safety_flag', title: 'safety_flag' },
+        { id: 'pii_removed', title: 'pii_removed' },
+        { id: 'target_gender', title: 'target_gender' },
+        { id: 'bias_label', title: 'bias_label' },
+        { id: 'explicitness', title: 'explicitness' },
+        { id: 'stereotype_category', title: 'stereotype_category' },
+        { id: 'sentiment_toward_referent', title: 'sentiment_toward_referent' },
+        { id: 'device', title: 'device' },
+        { id: 'qa_status', title: 'qa_status' },
+        { id: 'annotation_date', title: 'annotation_date' },
+        { id: 'collector_email', title: 'collector_email' },
+        { id: 'annotator_email', title: 'annotator_email' },
+        { id: 'notes', title: 'notes' },
+      ],
+    });
+
+    const records = sentences.map((sentence) => ({
+      language: sentence.language || '',
+      script: sentence.script || '',
+      country: sentence.country || '',
+      region_dialect: sentence.region_dialect || '',
+      source_type: sentence.source_type || '',
+      source_ref: sentence.source_ref || '',
+      collection_date: sentence.collection_date
+        ? new Date(sentence.collection_date).toISOString()
+        : '',
+      text: sentence.text || '',
+      domain: sentence.domain || '',
+      topic: sentence.topic || '',
+      theme: sentence.theme || '',
+      sensitive_characteristic: sentence.sensitive_characteristic || '',
+      safety_flag: sentence.safety_flag || '',
+      pii_removed: sentence.pii_removed?.toString() || '',
+      target_gender: sentence.target_gender || '',
+      bias_label: sentence.bias_label || '',
+      explicitness: sentence.explicitness || '',
+      stereotype_category: sentence.stereotype_category || '',
+      sentiment_toward_referent: sentence.sentiment_toward_referent || '',
+      device: sentence.device || '',
+      qa_status: sentence.qa_status || '',
+      annotation_date: sentence.annotation_date
+        ? new Date(sentence.annotation_date).toISOString()
+        : '',
+      collector_email: (sentence.collector_id as any)?.email || '',
+      annotator_email: (sentence.annotator_id as any)?.email || '',
+      notes: sentence.notes || '',
+    }));
+
+    const csvContent =
+      csvStringifier.getHeaderString() +
+      csvStringifier.stringifyRecords(records);
+
+    // Generate filename
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const generatedFileName = `session-${documentId.slice(0, 8)}-${timestamp}.csv`;
+
+    // Upload CSV to S3
+    const s3Key = `${userId}/session-exports/${generatedFileName}`;
+    await this.uploadService.upload({
+      filePath: s3Key,
+      file: Buffer.from(csvContent, 'utf-8'),
+    });
+
+    // Get download URL
+    const downloadUrl = await this.uploadService.getFileUrl(s3Key, 86400 * 7);
+
+    // Mark sentences as exported
+    const sentenceIds = sentences.map((s) => s._id);
+    const exportedAt = new Date();
+    await this.sentenceModel.updateMany(
+      { _id: { $in: sentenceIds } },
+      { $set: { exported_at: exportedAt } },
+    );
+
+    // Create export record
+    const exportRecord = new this.annotationExportModel({
+      user_id: userId,
+      document_id: documentId,
+      sentence_count: sentences.length,
+      file_name: generatedFileName,
+      s3_key: s3Key,
+      download_url: downloadUrl,
+      exported_sentence_ids: sentenceIds,
+      exported_at: exportedAt,
+    });
+    await exportRecord.save();
+
+    return {
+      success: true,
+      message: `Successfully exported ${sentences.length} sentences from this session`,
+      export: {
+        file_name: generatedFileName,
+        download_url: downloadUrl,
+        sentence_count: sentences.length,
+        exported_at: exportedAt,
+      },
+    };
+  }
 }

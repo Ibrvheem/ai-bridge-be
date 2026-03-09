@@ -316,6 +316,46 @@ hausa,latin,Nigeria,kano_dialect,community,,2026-01-25T09:00:00.000Z,"Another sa
     return this.documentTrackingService.getAllDocuments(user.userId);
   }
 
+  // ==================== SESSION ENDPOINTS ====================
+
+  @Get('session/:documentId')
+  getSessionSentences(
+    @Param('documentId') documentId: string,
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '20',
+    @Query('filter') filter?: string,
+  ) {
+    return this.sentencesService.getSentencesBySession(
+      documentId,
+      parseInt(page, 10) || 1,
+      parseInt(limit, 10) || 20,
+      filter,
+    );
+  }
+
+  @Get('session/:documentId/stats')
+  getSessionStats(@Param('documentId') documentId: string) {
+    return this.sentencesService.getSessionStats(documentId);
+  }
+
+  @Get('session/:documentId/unannotated')
+  getSessionUnannotated(@Param('documentId') documentId: string) {
+    return this.sentencesService.getSessionUnannotated(documentId);
+  }
+
+  @Post('session/:documentId/export')
+  exportSession(
+    @Param('documentId') documentId: string,
+    @User() user,
+    @Body() body: { export_all?: boolean },
+  ) {
+    return this.sentencesService.exportSessionAnnotations(
+      documentId,
+      user.userId,
+      body.export_all || false,
+    );
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.sentencesService.findOne(id);
