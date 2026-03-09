@@ -4,6 +4,7 @@ import { TwitterScraperService } from './twitter-scraper.service';
 import { HausaTweetCollectorService } from './hausa-collector.service';
 import { AlaroyeScraperService } from './alaroye-scraper.service';
 import { BBCYorubaScraperService } from './bbc-yoruba-scraper.service';
+import { TextFileProcessorService } from './text-file-processor.service';
 
 @Module({
   controllers: [WebScraperController],
@@ -12,11 +13,13 @@ import { BBCYorubaScraperService } from './bbc-yoruba-scraper.service';
     HausaTweetCollectorService,
     AlaroyeScraperService,
     BBCYorubaScraperService,
+    TextFileProcessorService,
   ],
   exports: [
     HausaTweetCollectorService,
     AlaroyeScraperService,
     BBCYorubaScraperService,
+    TextFileProcessorService,
   ],
 })
 export class WebScraperModule {}

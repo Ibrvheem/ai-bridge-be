@@ -1,7 +1,18 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Query,
+  Body,
+  UploadedFile,
+  UseInterceptors,
+  BadRequestException,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { HausaTweetCollectorService } from './hausa-collector.service';
 import { AlaroyeScraperService } from './alaroye-scraper.service';
 import { BBCYorubaScraperService } from './bbc-yoruba-scraper.service';
+import { TextFileProcessorService } from './text-file-processor.service';
 import { Public } from 'decorators/public.decorator';
 
 @Controller('web-scraper')
@@ -11,6 +22,7 @@ export class WebScraperController {
     private readonly hausaCollectorService: HausaTweetCollectorService,
     private readonly alaroyeScraperService: AlaroyeScraperService,
     private readonly bbcYorubaScraperService: BBCYorubaScraperService,
+    private readonly textFileProcessorService: TextFileProcessorService,
   ) {}
 
   /**
@@ -98,5 +110,56 @@ export class WebScraperController {
   @Get('scrape-bbc-yoruba/status')
   getBBCYorubaScraperStatus() {
     return this.bbcYorubaScraperService.getStatus();
+  }
+
+  // ===== TEXT FILE PROCESSOR =====
+
+  /**
+   * Upload and process a text file (form-data)
+   * Accepts articles or sentence-per-line files — breaks them into sentences,
+   * removes PII, runs AI analysis, and structures into DataCollection schema.
+   *
+   * Form fields:
+   *   file        (required) - the text file
+   *   language    (required) - e.g. "hausa", "yoruba"
+   *   country     (required) - e.g. "Nigeria"
+   *   sourceRef   (required) - e.g. "OpenWHO"
+   *   sourceType  (optional) - default "web_public"
+   *   script      (optional) - default "latin"
+   *   collectorId (optional)
+   *   useAiAnalysis (optional) - default "true"
+   */
+  @Post('process-file')
+  @UseInterceptors(FileInterceptor('file'))
+  async processFile(
+    @UploadedFile() file: Express.Multer.File,
+    @Body('language') language: string,
+    @Body('country') country: string,
+    @Body('sourceRef') sourceRef: string,
+    @Body('sourceType') sourceType?: string,
+    @Body('script') script?: string,
+    @Body('collectorId') collectorId?: string,
+    @Body('useAiAnalysis') useAiAnalysis?: string,
+  ) {
+    if (!file) {
+      throw new BadRequestException('File is required');
+    }
+    if (!language || !country || !sourceRef) {
+      throw new BadRequestException(
+        'language, country, and sourceRef are required fields',
+      );
+    }
+
+    return this.textFileProcessorService.processTextFile({
+      fileBuffer: file.buffer,
+      fileName: file.originalname,
+      language,
+      country,
+      sourceRef,
+      sourceType: sourceType || 'web_public',
+      script: script || 'latin',
+      collectorId,
+      useAiAnalysis: useAiAnalysis !== 'false',
+    });
   }
 }
