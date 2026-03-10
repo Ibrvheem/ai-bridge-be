@@ -2,10 +2,9 @@ import mongoose from 'mongoose';
 import { USER_TYPE } from './types';
 
 export const UserSchema = new mongoose.Schema({
-  email: { type: String, required: true },
+  email: { type: String, required: true, lowercase: true },
   password: { type: String },
   type: { type: String, enum: USER_TYPE, default: USER_TYPE.annotator },
-
 });
 
 export interface User {

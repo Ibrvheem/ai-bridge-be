@@ -106,14 +106,12 @@ export class CsvParserService {
           }),
         )
         .on('data', (row: CsvRow) => {
-          console.log('Parsing row:', row);
           const dto = this.mapRowToDto(row);
           if (dto) {
             results.push(dto);
           }
         })
         .on('end', () => {
-          console.log('CSV file successfully processed', results);
           resolve(results);
         })
         .on('error', (error) => {

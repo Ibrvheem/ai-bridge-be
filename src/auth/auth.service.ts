@@ -19,7 +19,7 @@ export class AuthService {
   constructor(
     private readonly userService: UsersService,
     private readonly jwtService: JwtService,
-  ) { }
+  ) {}
 
   async register(payload: UpdateUserDto) {
     const user = await this.userService.findUserByEmail(payload.email);
@@ -29,19 +29,17 @@ export class AuthService {
 
     try {
       const hashedPassword = await bcrypt.hash(payload.password, 10);
-      await this.userService.createUser(
-        {
-          email: payload.email,
-          password: hashedPassword,
-        },
-      );
+      await this.userService.createUser({
+        email: payload.email,
+        password: hashedPassword,
+      });
       return SUCCESS;
     } catch (err) {
       throw new NotFoundException(err);
     }
   }
   async validateUser(email: string, password: string) {
-    const user = await this.userService.findUserByEmail(email.toLowerCase());
+    const user = await this.userService.findUserByEmail(email);
 
     if (!user) {
       throw new NotFoundException('User not found');
@@ -51,7 +49,7 @@ export class AuthService {
     if (!isPassword) {
       throw new UnauthorizedException('Invalid Credentials');
     }
-    console.log(user)
+    console.log(user);
     return user;
   }
   async login(user: User) {
@@ -62,7 +60,7 @@ export class AuthService {
       user: {
         email: user.email,
         id: user.id,
-        type: user.type
+        type: user.type,
       },
     };
   }
@@ -89,6 +87,7 @@ export class AuthService {
   async verifyOTP(payload: verifyOTPDTO) {
     try {
       const user = await this.userService.findUserByEmail(payload.email);
+
       if (!user) {
         throw new NotFoundException('User not found');
       }

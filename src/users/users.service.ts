@@ -19,11 +19,14 @@ export class UsersService {
   }
 
   async findUserByEmail(email: string) {
-    return await this.userModel.findOne({ email }).exec();
+    return await this.userModel.findOne({ email: email.toLowerCase() }).exec();
   }
 
   async createUser(payload: CreateUserDto) {
-    const newUser = new this.userModel(payload);
+    const newUser = new this.userModel({
+      ...payload,
+      email: payload.email.toLowerCase(),
+    });
     return newUser.save();
   }
 
