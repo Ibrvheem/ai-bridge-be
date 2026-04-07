@@ -54,7 +54,7 @@ export class ReviewsService {
     return assignment;
   }
 
-  async getAllAssignments() {
+  async getAllAssignments(): Promise<any[]> {
     const assignments = await this.reviewAssignmentModel
       .find()
       .populate('reviewer_id', 'email')
@@ -80,7 +80,7 @@ export class ReviewsService {
 
   // ==================== REVIEWER: ASSIGNMENTS & SESSIONS ====================
 
-  async getMyAssignments(reviewerId: string) {
+  async getMyAssignments(reviewerId: string): Promise<any[]> {
     const assignments = await this.reviewAssignmentModel
       .find({ reviewer_id: new Types.ObjectId(reviewerId) })
       .populate('annotator_id', 'email')
@@ -246,7 +246,7 @@ export class ReviewsService {
     };
   }
 
-  async getReviewSessions(userId: string) {
+  async getReviewSessions(userId: string): Promise<any[]> {
     return this.reviewSessionModel
       .find({ reviewer_id: new Types.ObjectId(userId) })
       .sort({ created_at: -1 })
@@ -254,7 +254,7 @@ export class ReviewsService {
       .exec();
   }
 
-  async getReviewSession(id: string) {
+  async getReviewSession(id: string): Promise<any> {
     const session = await this.reviewSessionModel.findById(id).lean().exec();
     if (!session) {
       throw new NotFoundException('Review session not found');

@@ -27,7 +27,7 @@ export class ReviewsController {
   }
 
   @Get('assignments')
-  getAllAssignments() {
+  getAllAssignments(): Promise<any[]> {
     return this.reviewsService.getAllAssignments();
   }
 
@@ -42,7 +42,7 @@ export class ReviewsController {
   // ==================== REVIEWER: ASSIGNMENTS & SESSIONS ====================
 
   @Get('my-assignments')
-  getMyAssignments(@User() user) {
+  getMyAssignments(@User() user): Promise<any[]> {
     return this.reviewsService.getMyAssignments(user.userId);
   }
 
@@ -69,12 +69,12 @@ export class ReviewsController {
   // ==================== REVIEW SESSIONS ====================
 
   @Get()
-  getReviewSessions(@User() user) {
+  getReviewSessions(@User() user): Promise<any[]> {
     return this.reviewsService.getReviewSessions(user.userId);
   }
 
   @Get(':id')
-  getReviewSession(@Param('id') id: string) {
+  getReviewSession(@Param('id') id: string): Promise<any> {
     return this.reviewsService.getReviewSession(id);
   }
 
