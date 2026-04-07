@@ -26,6 +26,7 @@ import { User } from 'decorators/user.decorator';
 import { randomUUID } from 'crypto';
 import { Public } from 'decorators/public.decorator';
 import { AnnotateSentenceDto } from './dto/annotate-sentences.dto';
+import { DisputeSentenceDto } from './dto/dispute-sentence.dto';
 
 @Controller('sentences')
 export class SentencesController {
@@ -343,6 +344,16 @@ hausa,latin,Nigeria,kano_dialect,community,,2026-01-25T09:00:00.000Z,"Another sa
     return this.sentencesService.getSessionUnannotated(documentId);
   }
 
+  @Get('session/:documentId/rejected')
+  getSessionRejected(@Param('documentId') documentId: string) {
+    return this.sentencesService.findRejectedBySession(documentId);
+  }
+
+  @Get('my-rejected')
+  getMyRejected(@User() user) {
+    return this.sentencesService.findRejectedByAnnotator(user.userId);
+  }
+
   @Post('session/:documentId/export')
   exportSession(
     @Param('documentId') documentId: string,
@@ -371,6 +382,19 @@ hausa,latin,Nigeria,kano_dialect,community,,2026-01-25T09:00:00.000Z,"Another sa
       id,
       user.userId,
       annotateSentenceDto,
+    );
+  }
+
+  @Patch('dispute/:id')
+  disputeSentence(
+    @Param('id') id: string,
+    @Body() disputeSentenceDto: DisputeSentenceDto,
+    @User() user,
+  ) {
+    return this.sentencesService.disputeSentence(
+      id,
+      disputeSentenceDto.dispute_notes,
+      user.userId,
     );
   }
 

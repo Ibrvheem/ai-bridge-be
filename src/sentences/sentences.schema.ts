@@ -104,6 +104,26 @@ export const Sentences = new mongoose.Schema(
     annotation_time_seconds: { type: Number },
     document_id: { type: String }, // Track which upload batch this sentence belongs to
     exported_at: { type: Date, default: null }, // Track when this sentence was exported
+
+    // === Review Fields ===
+    review_notes: { type: String }, // Reviewer's latest comment
+    dispute_notes: { type: String }, // Annotator's latest appeal message
+    review_history: [
+      {
+        user_id: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'User',
+          required: true,
+        },
+        action: {
+          type: String,
+          enum: ['accepted', 'rejected', 'appealed'],
+          required: true,
+        },
+        notes: { type: String },
+        created_at: { type: Date, default: Date.now },
+      },
+    ],
   },
   {
     timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' },
@@ -154,6 +174,14 @@ export interface Sentences {
   annotation_time_seconds?: number;
   document_id?: string;
   exported_at?: Date | null;
+  review_notes?: string | null;
+  dispute_notes?: string | null;
+  review_history?: Array<{
+    user_id: string;
+    action: 'accepted' | 'rejected' | 'appealed';
+    notes?: string;
+    created_at: Date;
+  }>;
   created_at: Date;
   updated_at: Date;
 }

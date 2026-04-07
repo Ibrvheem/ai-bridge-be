@@ -4,7 +4,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { CreateSentenceDto } from './dto/create-sentence.dto';
 import { UpdateSentenceDto } from './dto/update-sentence.dto';
 import { BulkCreateSentenceDto } from './dto/bulk-create-sentence.dto';
@@ -239,6 +239,69 @@ export class SentencesService {
     return this.sentenceModel.find({ source_type: sourceType }).exec();
   }
 
+  async findRejectedBySession(documentId: string) {
+    return this.sentenceModel
+      .find({
+        document_id: documentId,
+        qa_status: { $in: [QAStatus.REJECTED, QAStatus.DISPUTED] },
+      })
+      .populate('collector_id', 'email first_name last_name')
+      .populate('annotator_id', 'email first_name last_name')
+      .populate('review_history.user_id', 'email first_name last_name')
+      .sort({ updated_at: -1 })
+      .lean()
+      .exec();
+  }
+
+  async findRejectedByAnnotator(annotatorId: string) {
+    return this.sentenceModel
+      .find({
+        annotator_id: new Types.ObjectId(annotatorId),
+        qa_status: { $in: [QAStatus.REJECTED, QAStatus.DISPUTED] },
+      })
+      .populate('collector_id', 'email first_name last_name')
+      .populate('annotator_id', 'email first_name last_name')
+      .populate('review_history.user_id', 'email first_name last_name')
+      .sort({ updated_at: -1 })
+      .lean()
+      .exec();
+  }
+
+  async disputeSentence(id: string, disputeNotes: string, userId: string) {
+    const sentence = await this.sentenceModel
+      .findById(id)
+      .select('qa_status')
+      .lean()
+      .exec();
+
+    if (!sentence) {
+      throw new NotFoundException('Sentence not found');
+    }
+
+    if (sentence.qa_status !== QAStatus.REJECTED) {
+      throw new BadRequestException('Only rejected sentences can be disputed');
+    }
+
+    return this.sentenceModel
+      .findByIdAndUpdate(
+        id,
+        {
+          qa_status: QAStatus.DISPUTED,
+          dispute_notes: disputeNotes,
+          $push: {
+            review_history: {
+              user_id: new Types.ObjectId(userId),
+              action: 'appealed',
+              notes: disputeNotes,
+              created_at: new Date(),
+            },
+          },
+        },
+        { new: true },
+      )
+      .exec();
+  }
+
   async getStats() {
     const pipeline = [
       {
@@ -270,11 +333,27 @@ export class SentencesService {
     userId: string,
     payload: AnnotateSentenceDto,
   ) {
-    const updateData = {
+    // If re-annotating a rejected sentence, reset qa_status to needs_review
+    // and clear dispute_notes
+    const existing = await this.sentenceModel
+      .findById(id)
+      .select('qa_status')
+      .lean()
+      .exec();
+
+    const updateData: any = {
       ...payload,
       annotator_id: userId,
       annotation_date: new Date(),
     };
+
+    if (
+      existing?.qa_status === QAStatus.REJECTED ||
+      existing?.qa_status === QAStatus.DISPUTED
+    ) {
+      updateData.qa_status = QAStatus.NEEDS_REVIEW;
+      updateData.dispute_notes = null;
+    }
 
     return this.sentenceModel
       .findByIdAndUpdate(id, updateData, { new: true })
@@ -671,6 +750,7 @@ export class SentencesService {
     // Create CSV
     const csvStringifier = createObjectCsvStringifier({
       header: [
+        { id: 'sentence_id', title: 'sentence_id' },
         { id: 'language', title: 'language' },
         { id: 'script', title: 'script' },
         { id: 'country', title: 'country' },
@@ -700,6 +780,7 @@ export class SentencesService {
     });
 
     const records = sentences.map((sentence) => ({
+      sentence_id: (sentence as any)._id?.toString() || '',
       language: sentence.language || '',
       script: sentence.script || '',
       country: sentence.country || '',

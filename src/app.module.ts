@@ -16,6 +16,7 @@ import { LanguageModule } from './language/language.module';
 import { SentencesModule } from './sentences/sentences.module';
 import { WebScraperModule } from './web-scraper/web-scraper.module';
 import { AnnotationSessionsModule } from './annotation-sessions/annotation-sessions.module';
+import { ReviewsModule } from './reviews/reviews.module';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { AnnotationSessionsModule } from './annotation-sessions/annotation-sessi
     SentencesModule,
     WebScraperModule,
     AnnotationSessionsModule,
+    ReviewsModule,
   ],
   controllers: [AppController],
   providers: [

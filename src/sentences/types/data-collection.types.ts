@@ -105,10 +105,10 @@ export enum Device {
 }
 
 export enum QAStatus {
-  GOLD = 'gold',
-  PASSED = 'passed',
+  ACCEPTED = 'accepted',
   NEEDS_REVIEW = 'needs_review',
   REJECTED = 'rejected',
+  DISPUTED = 'disputed',
 }
 
 // Type definitions

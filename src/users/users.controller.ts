@@ -9,6 +9,7 @@ export class UsersController {
   @Get()
   async getAll() {
     const users = await this.usersService.getUsers();
+    console.log('We are here', users);
     return users;
   }
   @Get('/me')
