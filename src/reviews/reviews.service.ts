@@ -290,22 +290,22 @@ export class ReviewsService {
         (id) => !reviewedSet.has(id.toString()),
       );
 
-      // Also include disputed sentences (reviewed but appealed)
-      const disputedSentences = await this.sentenceModel
+      // Also include disputed or re-annotated sentences (reviewed but need re-review)
+      const reReviewSentences = await this.sentenceModel
         .find({
           _id: { $in: session.sentence_ids },
-          qa_status: QAStatus.DISPUTED,
+          qa_status: { $in: [QAStatus.DISPUTED, QAStatus.NEEDS_REVIEW] },
         })
         .select('_id')
         .lean()
         .exec();
-      const disputedIds = disputedSentences.map((s) => s._id);
+      const reReviewIds = reReviewSentences.map((s) => s._id);
 
-      // Merge not-reviewed and disputed (avoid duplicates)
+      // Merge not-reviewed and re-review (avoid duplicates)
       const notReviewedSet = new Set(notReviewed.map((id) => id.toString()));
       sentenceIds = [
         ...notReviewed,
-        ...disputedIds.filter((id) => !notReviewedSet.has(id.toString())),
+        ...reReviewIds.filter((id) => !notReviewedSet.has(id.toString())),
       ];
     } else {
       sentenceIds = session.sentence_ids;

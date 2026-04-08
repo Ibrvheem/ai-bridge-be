@@ -5,6 +5,7 @@ import { SentencesController } from './sentences.controller';
 import { Sentences } from './sentences.schema';
 import { DocumentUpload } from './document-upload.schema';
 import { AnnotationExport } from './annotation-export.schema';
+import { ReviewSession } from '../reviews/review-session.schema';
 import { CsvParserService } from '../lib/csv-parser.service';
 import { DuplicateDetectionService } from '../lib/duplicate-detection.service';
 import { DocumentTrackingService } from '../lib/document-tracking.service';
@@ -17,6 +18,7 @@ import { LanguageModule } from 'src/language/language.module';
       { name: 'Sentences', schema: Sentences },
       { name: 'DocumentUpload', schema: DocumentUpload },
       { name: 'AnnotationExport', schema: AnnotationExport },
+      { name: 'ReviewSession', schema: ReviewSession },
     ]),
     UploadModule,
     LanguageModule,

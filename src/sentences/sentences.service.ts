@@ -32,12 +32,19 @@ import {
   SafetyFlag,
 } from './types/data-collection.types';
 
+import {
+  ReviewSession,
+  ReviewSessionStatus,
+} from '../reviews/review-session.schema';
+
 @Injectable()
 export class SentencesService {
   constructor(
     @InjectModel('Sentences') private sentenceModel: Model<Sentences>,
     @InjectModel('AnnotationExport')
     private annotationExportModel: Model<IAnnotationExport>,
+    @InjectModel('ReviewSession')
+    private reviewSessionModel: Model<any>,
     private readonly languageService: LanguageService,
     private readonly uploadService: UploadService,
   ) {}
@@ -355,9 +362,28 @@ export class SentencesService {
       updateData.dispute_notes = null;
     }
 
-    return this.sentenceModel
+    const updated = await this.sentenceModel
       .findByIdAndUpdate(id, updateData, { new: true })
       .exec();
+
+    // Reopen any completed review sessions containing this sentence
+    if (
+      existing?.qa_status === QAStatus.REJECTED ||
+      existing?.qa_status === QAStatus.DISPUTED
+    ) {
+      await this.reviewSessionModel.updateMany(
+        {
+          sentence_ids: new Types.ObjectId(id),
+          status: ReviewSessionStatus.COMPLETED,
+        },
+        {
+          status: ReviewSessionStatus.ACTIVE,
+          completed_at: null,
+        },
+      );
+    }
+
+    return updated;
   }
 
   async getAnnotationStats() {
