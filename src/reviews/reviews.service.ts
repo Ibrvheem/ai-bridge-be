@@ -247,11 +247,41 @@ export class ReviewsService {
   }
 
   async getReviewSessions(userId: string): Promise<any[]> {
-    return this.reviewSessionModel
+    const sessions = await this.reviewSessionModel
       .find({ reviewer_id: new Types.ObjectId(userId) })
       .sort({ created_at: -1 })
       .lean()
       .exec();
+
+    // Recompute stats from actual data (counters can drift from re-reviews/disputes)
+    const corrected = await Promise.all(
+      sessions.map(async (session) => {
+        const totalSentences = session.sentence_ids?.length || 0;
+        const totalReviewed = session.reviewed_sentence_ids?.length || 0;
+
+        // Count accepted/rejected from actual sentence qa_status
+        const [acceptedCount, rejectedCount] = await Promise.all([
+          this.sentenceModel.countDocuments({
+            _id: { $in: session.sentence_ids },
+            qa_status: QAStatus.ACCEPTED,
+          }),
+          this.sentenceModel.countDocuments({
+            _id: { $in: session.sentence_ids },
+            qa_status: QAStatus.REJECTED,
+          }),
+        ]);
+
+        return {
+          ...session,
+          total_sentences: totalSentences,
+          total_reviewed: totalReviewed,
+          total_accepted: acceptedCount,
+          total_rejected: rejectedCount,
+        };
+      }),
+    );
+
+    return corrected;
   }
 
   async getReviewSession(id: string): Promise<any> {
@@ -264,12 +294,26 @@ export class ReviewsService {
 
   async getReviewSessionStats(id: string) {
     const session = await this.getReviewSession(id);
+    const totalSentences = session.sentence_ids?.length || 0;
+    const totalReviewed = session.reviewed_sentence_ids?.length || 0;
+
+    const [totalAccepted, totalRejected] = await Promise.all([
+      this.sentenceModel.countDocuments({
+        _id: { $in: session.sentence_ids },
+        qa_status: QAStatus.ACCEPTED,
+      }),
+      this.sentenceModel.countDocuments({
+        _id: { $in: session.sentence_ids },
+        qa_status: QAStatus.REJECTED,
+      }),
+    ]);
+
     return {
-      total_sentences: session.total_sentences,
-      total_reviewed: session.total_reviewed,
-      total_accepted: session.total_accepted,
-      total_rejected: session.total_rejected,
-      remaining: session.total_sentences - session.total_reviewed,
+      total_sentences: totalSentences,
+      total_reviewed: totalReviewed,
+      total_accepted: totalAccepted,
+      total_rejected: totalRejected,
+      remaining: totalSentences - totalReviewed,
       status: session.status,
     };
   }
@@ -406,20 +450,28 @@ export class ReviewsService {
       };
     } else {
       // When re-reviewing, adjust counters: decrement old, increment new
-      const decrements: any = {};
-      if (oldQAStatus === QAStatus.ACCEPTED) decrements.total_accepted = -1;
-      if (oldQAStatus === QAStatus.REJECTED) decrements.total_rejected = -1;
-      // DISPUTED was previously REJECTED, so decrement rejected counter
-      if (oldQAStatus === QAStatus.DISPUTED) decrements.total_rejected = -1;
+      // Use additive accumulation to avoid spread overwriting same keys
+      const incOps: Record<string, number> = {};
 
-      const increments: any = {};
-      if (dto.qa_status === QAStatus.ACCEPTED) increments.total_accepted = 1;
-      if (dto.qa_status === QAStatus.REJECTED) increments.total_rejected = 1;
+      // Decrement old status counter
+      if (oldQAStatus === QAStatus.ACCEPTED) {
+        incOps.total_accepted = (incOps.total_accepted || 0) - 1;
+      } else if (oldQAStatus === QAStatus.REJECTED) {
+        incOps.total_rejected = (incOps.total_rejected || 0) - 1;
+      }
+      // DISPUTED/NEEDS_REVIEW: don't decrement either counter since the
+      // dispute process already changed the status without adjusting counters
 
-      updateOps.$inc = {
-        ...decrements,
-        ...increments,
-      };
+      // Increment new status counter
+      if (dto.qa_status === QAStatus.ACCEPTED) {
+        incOps.total_accepted = (incOps.total_accepted || 0) + 1;
+      } else if (dto.qa_status === QAStatus.REJECTED) {
+        incOps.total_rejected = (incOps.total_rejected || 0) + 1;
+      }
+
+      if (Object.keys(incOps).length > 0) {
+        updateOps.$inc = incOps;
+      }
     }
 
     await this.reviewSessionModel
