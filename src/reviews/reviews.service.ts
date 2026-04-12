@@ -137,13 +137,13 @@ export class ReviewsService {
           bias_label: { $exists: true, $ne: null },
         });
 
-        // Check if already has an active review session
+        // Check if already has a review session (active or completed)
         const existingReview = await this.reviewSessionModel
           .findOne({
             reviewer_id: new Types.ObjectId(reviewerId),
             document_id: upload.document_id,
-            status: ReviewSessionStatus.ACTIVE,
           })
+          .sort({ created_at: -1 })
           .lean()
           .exec();
 
@@ -152,6 +152,7 @@ export class ReviewsService {
           annotated_count: annotatedCount,
           has_active_review: !!existingReview,
           active_review_id: existingReview?._id || null,
+          review_status: existingReview?.status || null,
         };
       }),
     );
@@ -181,19 +182,20 @@ export class ReviewsService {
       );
     }
 
-    // Check for existing active review of this session
+    // Check for existing review of this session (active or completed)
     const existingReview = await this.reviewSessionModel
       .findOne({
         reviewer_id: new Types.ObjectId(reviewerId),
         document_id: documentId,
-        status: ReviewSessionStatus.ACTIVE,
       })
       .lean()
       .exec();
 
     if (existingReview) {
       throw new ConflictException(
-        'You already have an active review for this session',
+        existingReview.status === ReviewSessionStatus.COMPLETED
+          ? 'You have already completed a review for this session'
+          : 'You already have an active review for this session',
       );
     }
 
@@ -260,16 +262,21 @@ export class ReviewsService {
         const totalReviewed = session.reviewed_sentence_ids?.length || 0;
 
         // Count accepted/rejected from actual sentence qa_status
-        const [acceptedCount, rejectedCount] = await Promise.all([
-          this.sentenceModel.countDocuments({
-            _id: { $in: session.sentence_ids },
-            qa_status: QAStatus.ACCEPTED,
-          }),
-          this.sentenceModel.countDocuments({
-            _id: { $in: session.sentence_ids },
-            qa_status: QAStatus.REJECTED,
-          }),
-        ]);
+        const [acceptedCount, rejectedCount, needsReReviewCount] =
+          await Promise.all([
+            this.sentenceModel.countDocuments({
+              _id: { $in: session.sentence_ids },
+              qa_status: QAStatus.ACCEPTED,
+            }),
+            this.sentenceModel.countDocuments({
+              _id: { $in: session.sentence_ids },
+              qa_status: QAStatus.REJECTED,
+            }),
+            this.sentenceModel.countDocuments({
+              _id: { $in: session.sentence_ids },
+              qa_status: { $in: [QAStatus.DISPUTED, QAStatus.NEEDS_REVIEW] },
+            }),
+          ]);
 
         return {
           ...session,
@@ -277,6 +284,7 @@ export class ReviewsService {
           total_reviewed: totalReviewed,
           total_accepted: acceptedCount,
           total_rejected: rejectedCount,
+          needs_re_review: needsReReviewCount,
         };
       }),
     );
